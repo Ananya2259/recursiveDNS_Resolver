@@ -35,7 +35,7 @@ end
 def resolve(dns_records, lookup_chain, domain)
   if dns_records["A"].include?(domain) #checks if the given domains ip address in A records.If yes it will return the ip address
     return lookup_chain.push(dns_records["A"][domain])
-  elsif dns_records["CNAME"] and dns_records["CNAME"].include?(domain) #checks if the given domains is in CNAME record if yes it will recursively call the resolve function with the other domain name returned by the Cname record.
+  elsif dns_records["CNAME"].include?(domain) #checks if the given domains is in CNAME record if yes it will recursively call the resolve function with the other domain name returned by the Cname record.
     lookup_chain.push(dns_records["CNAME"][domain])
     resolve(dns_records, lookup_chain, dns_records["CNAME"][domain])
   else
