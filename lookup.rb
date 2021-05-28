@@ -18,32 +18,36 @@ domain = get_command_line_argument
 # https://www.rubydoc.info/stdlib/core/IO:readlines
 dns_raw = File.readlines("zone")
 
-def parse_dns(dns_raw)
-  dns_raw = dns_raw.reject { |line| line[0] == "#" or line.empty? } #parses the zone file and deletes the empty lines and commented lines and stores it again in in the same variable.
-  dns_records = {} #creates a hash
-  dns_raw.each do |line| #loops through each line in file.
-    arr = line.strip.split(", ") #splits the line into three array elements and stores it in array
-    unless (dns_records.include? (arr[0])) #checks if the key already exists in the hash
-      dns_records[arr[0]] = { arr[1] => arr[2] } #creates a key and stores the hash in that.
-    else
-      dns_records[arr[0]][arr[1]] = arr[2] #Appends a new hash as value to a already existing key.
-    end
+def parse_dns(raw)
+  raw.
+    reject { |line| line.empty? || line[0] == "#" }.
+    map { |line| line.strip.split(", ") }.
+    reject do |record|
+    record.length != 3
   end
-  return dns_records
+    .each_with_object({}) do |record, records|
+    records[record[1]] = { type: record[0], target: record[2] }
+  end
 end
 
 def resolve(dns_records, lookup_chain, domain)
-  if dns_records["A"].include?(domain) #checks if the given domains ip address in A records.If yes it will return the ip address
-    return lookup_chain.push(dns_records["A"][domain])
-  elsif dns_records["CNAME"].include?(domain) #checks if the given domains is in CNAME record if yes it will recursively call the resolve function with the other domain name returned by the Cname record.
-    lookup_chain.push(dns_records["CNAME"][domain])
-    resolve(dns_records, lookup_chain, dns_records["CNAME"][domain])
+  record = dns_records[domain]
+  if (!record)
+    lookup_chain[0] = "Error: Record not found for " + domain
+    return lookup_chain
+  elsif record[:type] == "CNAME"
+    lookup_chain << record[:target]
+    resolve(dns_records, lookup_chain, record[:target])
+  elsif record[:type] == "A"
+    return lookup_chain << record[:target]
   else
-    lookup_chain.clear << ("Error: record not found for " + domain) #If the user has given a invalid request this will provide a appropriate message to the user.
+    lookup_chain[0] = "Invalid record type for " + domain
+    return lookup_chain
   end
 end
 
 dns_records = parse_dns(dns_raw)
+
 lookup_chain = [domain]
 lookup_chain = resolve(dns_records, lookup_chain, domain)
 
